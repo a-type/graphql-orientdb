@@ -1,11 +1,15 @@
+import { FieldMissingError } from '../errors';
 import {
+  GraphQLOutputType,
+  isListType,
+  isNonNullType,
   FieldNode,
+  GraphQLObjectType,
   GraphQLSchema,
   isObjectType,
   ValueNode,
   NameNode,
-} from 'utils/graphql';
-import { FieldMissingError } from 'errors';
+} from 'graphql';
 
 export const getArgumentsPlusDefaults = (
   parentTypeName: string,
@@ -54,7 +58,7 @@ export const argFieldsToValues = (
 export const valueNodeToValue = (
   valueNode: ValueNode,
   variables: { [variableName: string]: any }
-) => {
+): any => {
   if (valueNode.kind === 'Variable') {
     return variables[valueNode.name.value];
   } else if (valueNode.kind === 'NullValue') {
@@ -70,4 +74,33 @@ export const valueNodeToValue = (
   } else {
     return valueNode.value;
   }
+};
+
+export const isListOrWrappedListType = (type: GraphQLOutputType): boolean => {
+  if (isListType(type)) {
+    return true;
+  }
+  if (isNonNullType(type)) {
+    return isListOrWrappedListType(type.ofType);
+  }
+  return false;
+};
+
+export const getNameOrAlias = (field: FieldNode): string =>
+  field.alias ? field.alias.value : field.name.value;
+
+export const extractObjectType = (
+  type: GraphQLOutputType
+): GraphQLObjectType<any, any, any> | null => {
+  if (isObjectType(type)) {
+    return type;
+  }
+
+  // TODO: interface / union ?
+
+  if (isNonNullType(type) || isListType(type)) {
+    return extractObjectType(type.ofType);
+  }
+
+  return null;
 };
